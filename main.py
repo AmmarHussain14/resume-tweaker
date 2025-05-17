@@ -1,9 +1,9 @@
 from fastapi import FastAPI, File, UploadFile
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
-from openai import OpenAI
 import tempfile
 import os
+import cohere
 from docx import Document
 import pdfplumber
 
@@ -18,12 +18,12 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Initialize OpenAI client with your key
-client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+# Initialize Cohere client with your key
+client = cohere.Client(os.getenv("COHERE_API_KEY"))
 
 # Utils
 def extract_text(file: UploadFile) -> str:
-    suffix = file.filename.split(".")[-1]
+    suffix = file.filename.split(".")[-1].lower()
     with tempfile.NamedTemporaryFile(delete=False, suffix=f".{suffix}") as tmp:
         tmp.write(file.file.read())
         tmp_path = tmp.name
@@ -45,8 +45,7 @@ def extract_text(file: UploadFile) -> str:
     finally:
         os.unlink(tmp_path)
 
-
-# OpenAI prompt builder
+# Prompt builder
 def build_prompt(resume: str, jd: str) -> str:
     return f"""
 You are a resume optimization expert.
@@ -58,6 +57,8 @@ Here is a job description:
 {jd}
 
 Modify the resume to align up to 75% with the job description. Highlight relevant skills and experiences. Keep formatting professional. Do not fabricate information.
+
+--END--
 """
 
 @app.post("/tweak_resume")
@@ -71,17 +72,20 @@ async def tweak_resume(
 
         prompt = build_prompt(resume_text, jd_text)
 
-        response = client.chat.completions.create(
-            model="gpt-3.5-turbo",
-            messages=[
-                {"role": "system", "content": "You are a helpful assistant."},
-                {"role": "user", "content": prompt}
-            ],
+        response = client.generate(
+            model="xlarge",            # you can use "small", "medium", "large", or "xlarge"
+            prompt=prompt,
+            max_tokens=300,
             temperature=0.7,
-            max_tokens=2000
+            k=0,
+            p=1,
+            frequency_penalty=0,
+            presence_penalty=0,
+            stop_sequences=["--END--"]
         )
 
-        modified_resume = response.choices[0].message.content
+        modified_resume = response.generations[0].text.strip()
+
         return JSONResponse(content={"modified_resume": modified_resume})
 
     except Exception as e:
