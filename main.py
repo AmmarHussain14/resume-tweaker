@@ -72,16 +72,16 @@ async def tweak_resume(
 
         prompt = build_prompt(resume_text, jd_text)
 
-        response = client.generate(
-            model="xlarge",            # you can use "small", "medium", "large", or "xlarge"
-            prompt=prompt,
-            max_tokens=300,
-            temperature=0.7,
-            k=0,
-            p=1,
-            frequency_penalty=0,
-            presence_penalty=0,
-            stop_sequences=["--END--"]
+	response = client.generate(
+   	     model="command-xlarge-nightly",
+    	     prompt=prompt,
+   	     max_tokens=300,
+             temperature=0.7,
+             k=0,
+             p=1,
+             frequency_penalty=0,
+             presence_penalty=0,
+             stop_sequences=["--END--"]
         )
 
         modified_resume = response.generations[0].text.strip()
