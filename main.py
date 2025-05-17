@@ -72,7 +72,7 @@ async def tweak_resume(
         prompt = build_prompt(resume_text, jd_text)
 
         response = client.chat.completions.create(
-            model="gpt-4",
+            model="gpt-3.5-turbo",
             messages=[
                 {"role": "system", "content": "You are a helpful assistant."},
                 {"role": "user", "content": prompt}
