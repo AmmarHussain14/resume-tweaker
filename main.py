@@ -23,7 +23,7 @@ client = cohere.Client(os.getenv("COHERE_API_KEY"))
 
 # Utils
 def extract_text(file: UploadFile) -> str:
-    suffix = file.filename.split(".")[-1].lower()
+    suffix = file.filename.split(".")[-1]
     with tempfile.NamedTemporaryFile(delete=False, suffix=f".{suffix}") as tmp:
         tmp.write(file.file.read())
         tmp_path = tmp.name
@@ -45,6 +45,7 @@ def extract_text(file: UploadFile) -> str:
     finally:
         os.unlink(tmp_path)
 
+
 # Prompt builder
 def build_prompt(resume: str, jd: str) -> str:
     return f"""
@@ -57,8 +58,6 @@ Here is a job description:
 {jd}
 
 Modify the resume to align up to 75% with the job description. Highlight relevant skills and experiences. Keep formatting professional. Do not fabricate information.
-
---END--
 """
 
 @app.post("/tweak_resume")
@@ -72,20 +71,14 @@ async def tweak_resume(
 
         prompt = build_prompt(resume_text, jd_text)
 
-	response = client.generate(
-   	     model="command-xlarge-nightly",
-    	     prompt=prompt,
-   	     max_tokens=300,
-             temperature=0.7,
-             k=0,
-             p=1,
-             frequency_penalty=0,
-             presence_penalty=0,
-             stop_sequences=["--END--"]
+        response = client.generate(
+            model="command",  # Use a valid Cohere model ID
+            prompt=prompt,
+            max_tokens=1500,
+            temperature=0.7
         )
 
-        modified_resume = response.generations[0].text.strip()
-
+        modified_resume = response.generations[0].text
         return JSONResponse(content={"modified_resume": modified_resume})
 
     except Exception as e:
