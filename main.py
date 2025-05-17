@@ -18,7 +18,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Initialize Cohere client with your key
+# Initialize Cohere client
 client = cohere.Client(os.getenv("COHERE_API_KEY"))
 
 # Utils
@@ -45,19 +45,27 @@ def extract_text(file: UploadFile) -> str:
     finally:
         os.unlink(tmp_path)
 
-
-# Prompt builder
+# Prompt builder for Cohere
 def build_prompt(resume: str, jd: str) -> str:
     return f"""
-You are a resume optimization expert.
+You are a resume optimization AI.
 
 Here is the candidate's resume:
+----------------------
 {resume}
+----------------------
 
-Here is a job description:
+Here is the job description:
+----------------------
 {jd}
+----------------------
 
-Modify the resume to align up to 75% with the job description. Highlight relevant skills and experiences. Keep formatting professional. Do not fabricate information.
+Your task is to rewrite the resume so that it aligns up to 75% with the job description.
+⚠️ Do NOT add suggestions or comments — just rewrite the resume text directly.
+⚠️ You must modify and tailor the resume to match the job description.
+⚠️ Preserve formatting but improve relevance. Do NOT invent fake experience, but reword existing points and reorder them if needed.
+
+Give ONLY the final improved resume as output.
 """
 
 @app.post("/tweak_resume")
@@ -72,13 +80,14 @@ async def tweak_resume(
         prompt = build_prompt(resume_text, jd_text)
 
         response = client.generate(
-            model="command",  # Use a valid Cohere model ID
+            model="command",  # Use the command model for instruction-following
             prompt=prompt,
             max_tokens=1500,
-            temperature=0.7
+            temperature=0.7,
+            truncate="END"
         )
 
-        modified_resume = response.generations[0].text
+        modified_resume = response.generations[0].text.strip()
         return JSONResponse(content={"modified_resume": modified_resume})
 
     except Exception as e:
