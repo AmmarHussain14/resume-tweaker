@@ -1,7 +1,7 @@
-from fastapi import FastAPI, File, UploadFile, Form
+from fastapi import FastAPI, File, UploadFile
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
-import openai
+from openai import OpenAI
 import tempfile
 import os
 from docx import Document
@@ -18,8 +18,8 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Set your OpenAI API Key
-openai.api_key = os.getenv("OPENAI_API_KEY")  # or hardcode for local testing
+# Initialize OpenAI client with your key
+client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 # Utils
 def extract_text(file: UploadFile) -> str:
@@ -31,10 +31,15 @@ def extract_text(file: UploadFile) -> str:
     try:
         if suffix == "pdf":
             with pdfplumber.open(tmp_path) as pdf:
-                return "\n".join(page.extract_text() for page in pdf.pages if page.extract_text())
+                return "\n".join(
+                    page.extract_text() for page in pdf.pages if page.extract_text()
+                )
         elif suffix == "docx":
             doc = Document(tmp_path)
             return "\n".join([para.text for para in doc.paragraphs])
+        elif suffix == "txt":
+            with open(tmp_path, "r", encoding="utf-8") as f:
+                return f.read()
         else:
             return "Unsupported file type"
     finally:
@@ -66,7 +71,7 @@ async def tweak_resume(
 
         prompt = build_prompt(resume_text, jd_text)
 
-        response = openai.ChatCompletion.create(
+        response = client.chat.completions.create(
             model="gpt-4",
             messages=[
                 {"role": "system", "content": "You are a helpful assistant."},
@@ -76,7 +81,7 @@ async def tweak_resume(
             max_tokens=2000
         )
 
-        modified_resume = response["choices"][0]["message"]["content"]
+        modified_resume = response.choices[0].message.content
         return JSONResponse(content={"modified_resume": modified_resume})
 
     except Exception as e:
