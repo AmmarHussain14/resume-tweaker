@@ -79,7 +79,7 @@ async def tweak_resume(
         prompt = build_prompt(resume_text, jd_text)
 
         # Change this model to one you get from /list_models, example: "models/chat-bison-001"
-        model_name = "models/chat-bison-001"
+        model_name = "models/gemini-1.5-pro-latest"
 
         response = genai.generate_text(
             model=model_name,
