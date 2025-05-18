@@ -55,7 +55,7 @@ Your task is to revise the candidate's resume so that it aligns up to 85% with t
 
 - Emphasize relevant skills, experiences, and achievements that match the job requirements.
 - Maintain a professional and readable format suitable for recruiters.
-- You may reword, rearrange, or highlight content, but do not fabricate any information or add details not present in the original resume.
+- You may reword, rearrange, or highlight content, you can fabricate any information or add details not present in the original resume.
 
 Here is the candidate's resume:
 {resume}
