@@ -3,18 +3,13 @@ from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 import tempfile
 import os
-import pdfplumber
-from docx import Document
-from dotenv import load_dotenv
 import google.generativeai as genai
+from docx import Document
+import pdfplumber
 
-# Load environment variables
-load_dotenv()
-
-# Initialize FastAPI app
 app = FastAPI()
 
-# Allow frontend to call this backend
+# Allow all origins for CORS (adjust as needed)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -23,13 +18,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Configure Gemini API
+# Configure Google Generative AI client with your API key
 genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
-model = genai.GenerativeModel("gemini-pro")
 
-# Extract text from uploaded resume and JD files
 def extract_text(file: UploadFile) -> str:
-    suffix = file.filename.split(".")[-1]
+    suffix = file.filename.split(".")[-1].lower()
     with tempfile.NamedTemporaryFile(delete=False, suffix=f".{suffix}") as tmp:
         tmp.write(file.file.read())
         tmp_path = tmp.name
@@ -51,7 +44,7 @@ def extract_text(file: UploadFile) -> str:
     finally:
         os.unlink(tmp_path)
 
-# Prompt builder for Gemini
+
 def build_prompt(resume: str, jd: str) -> str:
     return f"""
 You are a resume optimization expert.
@@ -65,7 +58,15 @@ Here is a job description:
 Modify the resume to align up to 75% with the job description. Highlight relevant skills and experiences. Keep formatting professional. Do not fabricate information.
 """
 
-# API endpoint for resume tweaking
+@app.get("/list_models")
+async def list_models():
+    try:
+        models = genai.list_models()
+        model_names = [model.name for model in models]
+        return {"available_models": model_names}
+    except Exception as e:
+        return {"error": str(e)}
+
 @app.post("/tweak_resume")
 async def tweak_resume(
     resume_file: UploadFile = File(...),
@@ -77,9 +78,17 @@ async def tweak_resume(
 
         prompt = build_prompt(resume_text, jd_text)
 
-        response = model.generate_content(prompt)
-        modified_resume = response.text
+        # Change this model to one you get from /list_models, example: "models/chat-bison-001"
+        model_name = "models/chat-bison-001"
 
+        response = genai.generate_text(
+            model=model_name,
+            prompt=prompt,
+            temperature=0.7,
+            max_output_tokens=2000,
+        )
+
+        modified_resume = response.text.strip()
         return JSONResponse(content={"modified_resume": modified_resume})
 
     except Exception as e:
