@@ -5,14 +5,16 @@ import tempfile
 import os
 import pdfplumber
 from docx import Document
-import google.generativeai as genai
 from dotenv import load_dotenv
+import google.generativeai as genai
 
-load_dotenv()  # To load COHERE_API_KEY or GEMINI_API_KEY from .env
+# Load environment variables
+load_dotenv()
 
+# Initialize FastAPI app
 app = FastAPI()
 
-# CORS middleware
+# Allow frontend to call this backend
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -21,10 +23,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Gemini API configuration
+# Configure Gemini API
 genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
+model = genai.GenerativeModel("gemini-pro")
 
-
+# Extract text from uploaded resume and JD files
 def extract_text(file: UploadFile) -> str:
     suffix = file.filename.split(".")[-1]
     with tempfile.NamedTemporaryFile(delete=False, suffix=f".{suffix}") as tmp:
@@ -48,7 +51,7 @@ def extract_text(file: UploadFile) -> str:
     finally:
         os.unlink(tmp_path)
 
-
+# Prompt builder for Gemini
 def build_prompt(resume: str, jd: str) -> str:
     return f"""
 You are a resume optimization expert.
@@ -59,24 +62,25 @@ Here is the candidate's resume:
 Here is a job description:
 {jd}
 
-Modify the resume to align up to 75% with the job description. Highlight relevant skills and experiences.
-Keep formatting professional. Do not fabricate information.
+Modify the resume to align up to 75% with the job description. Highlight relevant skills and experiences. Keep formatting professional. Do not fabricate information.
 """
 
-
+# API endpoint for resume tweaking
 @app.post("/tweak_resume")
 async def tweak_resume(
-    resume_file: UploadFile = File(...), jd_file: UploadFile = File(...)
+    resume_file: UploadFile = File(...),
+    jd_file: UploadFile = File(...)
 ):
     try:
         resume_text = extract_text(resume_file)
         jd_text = extract_text(jd_file)
+
         prompt = build_prompt(resume_text, jd_text)
 
-        model = genai.GenerativeModel("gemini-pro")
         response = model.generate_content(prompt)
+        modified_resume = response.text
 
-        return JSONResponse(content={"modified_resume": response.text})
+        return JSONResponse(content={"modified_resume": modified_resume})
 
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
