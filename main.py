@@ -3,14 +3,16 @@ from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 import tempfile
 import os
-from docx import Document
 import pdfplumber
+from docx import Document
 import google.generativeai as genai
+from dotenv import load_dotenv
 
-# Init FastAPI
+load_dotenv()  # To load COHERE_API_KEY or GEMINI_API_KEY from .env
+
 app = FastAPI()
 
-# CORS for frontend dev
+# CORS middleware
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -19,10 +21,10 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Set Gemini API key (store in Render env as GEMINI_API_KEY)
+# Gemini API configuration
 genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
 
-# Utils to extract file text
+
 def extract_text(file: UploadFile) -> str:
     suffix = file.filename.split(".")[-1]
     with tempfile.NamedTemporaryFile(delete=False, suffix=f".{suffix}") as tmp:
@@ -46,7 +48,7 @@ def extract_text(file: UploadFile) -> str:
     finally:
         os.unlink(tmp_path)
 
-# Prompt for Gemini
+
 def build_prompt(resume: str, jd: str) -> str:
     return f"""
 You are a resume optimization expert.
@@ -57,14 +59,14 @@ Here is the candidate's resume:
 Here is a job description:
 {jd}
 
-Modify the resume to align up to 90% with the job description. Highlight relevant skills and experiences. Keep formatting professional. Do not fabricate information.
+Modify the resume to align up to 75% with the job description. Highlight relevant skills and experiences.
+Keep formatting professional. Do not fabricate information.
 """
 
-# Endpoint
+
 @app.post("/tweak_resume")
 async def tweak_resume(
-    resume_file: UploadFile = File(...),
-    jd_file: UploadFile = File(...)
+    resume_file: UploadFile = File(...), jd_file: UploadFile = File(...)
 ):
     try:
         resume_text = extract_text(resume_file)
@@ -75,5 +77,6 @@ async def tweak_resume(
         response = model.generate_content(prompt)
 
         return JSONResponse(content={"modified_resume": response.text})
+
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
