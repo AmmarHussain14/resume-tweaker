@@ -1,4 +1,4 @@
-from fastapi import FastAPI, File, UploadFile
+from fastapi import FastAPI, File, UploadFile, Form
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 import tempfile
@@ -55,7 +55,7 @@ Your task is to revise the candidate's resume so that it aligns up to 85% with t
 
 - Emphasize relevant skills, experiences, and achievements that match the job requirements.
 - Maintain a professional and readable format suitable for recruiters.
-- You may reword, rearrange, or highlight content, you can fabricate any information or add details not present in the original resume.
+- You may reword, rearrange, or highlight content, you can extra highlight point in resume according to job description.
 
 Here is the candidate's resume:
 {resume}
@@ -78,12 +78,10 @@ async def list_models():
 @app.post("/tweak_resume")
 async def tweak_resume(
     resume_file: UploadFile = File(...),
-    jd_file: UploadFile = File(...)
+    jd_text: str = Form(...)  # Accept JD as plain text input
 ):
     try:
         resume_text = extract_text(resume_file)
-        jd_text = extract_text(jd_file)
-
         prompt = build_prompt(resume_text, jd_text)
 
         # Use a valid Gemini model
