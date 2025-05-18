@@ -83,7 +83,7 @@ async def tweak_resume(
         prompt = build_prompt(resume_text, jd_text)
 
         # Use a valid Gemini model
-        model = genai.GenerativeModel("models/gemini-1.5-pro-latest")
+        model = genai.GenerativeModel("models/gemini-1.5-flash-latest")
         response = model.generate_content(prompt)
 
         return JSONResponse(content={"modified_resume": response.text.strip()})
