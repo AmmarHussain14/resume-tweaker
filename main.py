@@ -3,13 +3,14 @@ from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 import tempfile
 import os
-import cohere
 from docx import Document
 import pdfplumber
+import google.generativeai as genai
 
+# Init FastAPI
 app = FastAPI()
 
-# CORS (allow frontend dev)
+# CORS for frontend dev
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -18,10 +19,10 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Initialize Cohere client
-client = cohere.Client(os.getenv("COHERE_API_KEY"))
+# Set Gemini API key (store in Render env as GEMINI_API_KEY)
+genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
 
-# Utils
+# Utils to extract file text
 def extract_text(file: UploadFile) -> str:
     suffix = file.filename.split(".")[-1]
     with tempfile.NamedTemporaryFile(delete=False, suffix=f".{suffix}") as tmp:
@@ -45,29 +46,21 @@ def extract_text(file: UploadFile) -> str:
     finally:
         os.unlink(tmp_path)
 
-# Prompt builder for Cohere
+# Prompt for Gemini
 def build_prompt(resume: str, jd: str) -> str:
     return f"""
-You are a resume optimization AI.
+You are a resume optimization expert.
 
 Here is the candidate's resume:
-----------------------
 {resume}
-----------------------
 
-Here is the job description:
-----------------------
+Here is a job description:
 {jd}
-----------------------
 
-Your task is to rewrite the resume so that it aligns up to 75% with the job description.
-⚠️ Do NOT add suggestions or comments — just rewrite the resume text directly.
-⚠️ You must modify and tailor the resume to match the job description.
-⚠️ Preserve formatting but improve relevance. Do NOT invent fake experience, but reword existing points and reorder them if needed.
-
-Give ONLY the final improved resume as output.
+Modify the resume to align up to 90% with the job description. Highlight relevant skills and experiences. Keep formatting professional. Do not fabricate information.
 """
 
+# Endpoint
 @app.post("/tweak_resume")
 async def tweak_resume(
     resume_file: UploadFile = File(...),
@@ -76,19 +69,11 @@ async def tweak_resume(
     try:
         resume_text = extract_text(resume_file)
         jd_text = extract_text(jd_file)
-
         prompt = build_prompt(resume_text, jd_text)
 
-        response = client.generate(
-            model="command",  # Use the command model for instruction-following
-            prompt=prompt,
-            max_tokens=1500,
-            temperature=0.7,
-            truncate="END"
-        )
+        model = genai.GenerativeModel("gemini-pro")
+        response = model.generate_content(prompt)
 
-        modified_resume = response.generations[0].text.strip()
-        return JSONResponse(content={"modified_resume": modified_resume})
-
+        return JSONResponse(content={"modified_resume": response.text})
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
