@@ -22,7 +22,7 @@ app.add_middleware(
 )
 
 # Configure Google Generative AI client with your API key
-genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))
+genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
 
 def extract_text(file: UploadFile) -> str:
     suffix = file.filename.split(".")[-1].lower()
@@ -49,15 +49,19 @@ def extract_text(file: UploadFile) -> str:
 
 def build_prompt(resume: str, jd: str) -> str:
     return f"""
-You are a resume optimization expert.
+You are an expert resume optimization assistant.
+
+Your task is to revise the candidate's resume so that it aligns up to 85% with the provided job description.
+
+- Emphasize relevant skills, experiences, and achievements that match the job requirements.
+- Maintain a professional and readable format suitable for recruiters.
+- You may reword, rearrange, or highlight content, but do not fabricate any information or add details not present in the original resume.
 
 Here is the candidate's resume:
 {resume}
 
-Here is a job description:
+Here is the job description:
 {jd}
-
-Modify the resume to align up to 75% with the job description. Highlight relevant skills and experiences. Keep formatting professional. Do not fabricate information.
 
 ONLY return the improved resume text.
 """
